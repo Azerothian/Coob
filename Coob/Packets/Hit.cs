@@ -7,9 +7,16 @@ namespace Coob.Packets
 {
     public partial class Packet
     {
-        public class Shoot : Base
+        public class Hit : Base
         {
-            public Shoot(Client client)
+            public enum HitType
+            {
+                Normal= 0,
+                Block = 1,
+                Miss = 3,
+                Absorb = 5
+            }
+            public Hit(Client client)
                 : base(client)
             {
             }
@@ -17,12 +24,12 @@ namespace Coob.Packets
             public override bool CallScript()
             {
                 throw new NotImplementedException();
-               // return (bool)Root.JavaScript.Engine.CallFunction("onShoot", this, Sender);
+                
             }
 
             public override void Process()
             {
-               throw new NotImplementedException();
+                throw new NotImplementedException();
             }
 
             public static Base Parse(Client client)

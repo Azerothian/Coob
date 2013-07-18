@@ -37,13 +37,50 @@ namespace Coob
             PacketParsers = new Dictionary<int, PacketParserDel>();
             Clients = new ConcurrentBag<Client>();
             Entities = new ConcurrentDictionary<long, Entity>();
+            /*
+            CS_PACKETS = {
+               0 : EntityUpdate,
+               6 : InteractPacket,
+               7 : HitPacket,
+               8 : Unknown8, # stealth
+               9 : ShootPacket,
+               10 : ClientChatMessage,
+               11 : ChunkDiscovered,
+               12 : SectorDiscovered,
+               17 : ClientVersion
+            }
+            SC_PACKETS = {
+             
+               0 : EntityUpdate,
+               1 : MultipleEntityUpdate, # not used
+               2 : UpdateFinished,
+               3 : Unknown3, # not used
+               4 : ServerUpdate,
+               5 : CurrentTime,
+               10 : ServerChatMessage,
+               18 : ServerFull,
+               17 : ServerMismatch,
+               16 : JoinPacket,
+               15 : SeedData
+            }
+            */
 
             PacketParsers.Add(0, Packet.EntityUpdate.Parse);
+            
+           // PacketParsers.Add(1, ); // MultipleEntityUpdate
+            //PacketParsers.Add(2, ); // UpdateFinished
+
             PacketParsers.Add(6, Packet.Interact.Parse);
+
+            //PacketParsers.Add(7, ); //Hit
+            //PacketParsers.Add(8, ); //Unknown
             PacketParsers.Add(9, Packet.Shoot.Parse);
             PacketParsers.Add(10, Packet.ChatMessage.Parse);
             PacketParsers.Add(11, Packet.UpdateChunk.Parse);
             PacketParsers.Add(12, Packet.UpdateSector.Parse);
+
+            //PacketParsers.Add(15, ); //Seed Data
+            //PacketParsers.Add(16, ); //Join Packet
             PacketParsers.Add(17, Packet.ClientVersion.Parse);
 
             clientListener = new TcpListener(IPAddress.Any, options.Port);
@@ -70,7 +107,7 @@ namespace Coob
             if (!PacketParsers.ContainsKey(id))
             {
                 Log.WriteError("Unknown packet: " + id + " from client " + id);
-                client.Disconnect("Unknown data");
+                //client.Disconnect("Unknown data");
                 return;
             }
 

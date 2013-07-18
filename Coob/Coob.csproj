@@ -57,6 +57,7 @@
     <Compile Include="Packets\Base.cs" />
     <Compile Include="Packets\ChatMessage.cs" />
     <Compile Include="Packets\ClientVersion.cs" />
+    <Compile Include="Packets\Hit.cs" />
     <Compile Include="Packets\DiscoverWorld.cs" />
     <Compile Include="Packets\EntityUpdate.cs" />
     <Compile Include="Packets\Interact.cs" />
