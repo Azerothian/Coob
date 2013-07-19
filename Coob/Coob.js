@@ -20,6 +20,7 @@ function onClientJoin(client) {
 
 function onEntityUpdate(entity, changed, client) {
 	//LogInfo("Player's X changed: " + changed.Position.X);
+	//LogInfo("Player's X changed: " + changed.Position.X);
 	return true;
 }
 

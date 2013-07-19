@@ -82,6 +82,7 @@ namespace Coob
             //PacketParsers.Add(15, ); //Seed Data
             //PacketParsers.Add(16, ); //Join Packet
             PacketParsers.Add(17, Packet.ClientVersion.Parse);
+
             clientListener = new TcpListener(IPAddress.Any, options.Port);
             clientListener.Start();
             clientListener.BeginAcceptTcpClient(onClientConnect, null);
@@ -124,7 +125,7 @@ namespace Coob
                 !(message is Packet.UpdateChunk) &&
                 !(message is Packet.UpdateSector))
             {
-                //Log.WriteInfo("queueing " + message);
+                Log.WriteInfo("queueing " + message);
             }
         }
 
