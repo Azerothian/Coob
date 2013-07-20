@@ -67,7 +67,14 @@ namespace Coob.Packets
             public override bool CallScript()
             {
                 if (IsJoin)
-                    return (bool)Root.JavaScript.Engine.CallFunction("onClientJoin", Sender);
+                {
+                    bool joined = (bool)Root.JavaScript.Engine.CallFunction("onClientJoin", Sender);
+
+                    if (joined)
+                        Sender.Joined = true;
+
+                    return joined;
+                }
                 else
                     return (bool)Root.JavaScript.Engine.CallFunction("onEntityUpdate", Entity, Changes, Sender);
             }
@@ -76,12 +83,23 @@ namespace Coob.Packets
             {
                 Entity.CopyByMask(Changes);
 
+                byte[] compressed;
+
                 using (var ms = new MemoryStream())
                 using (var bw = new BinaryWriter(ms))
                 {
                     bw.Write(Entity.ID);
                     bw.Write(Changes.LastBitmask);
                     Entity.WriteByMask(Changes.LastBitmask, bw);
+
+                    compressed = ZlibHelper.CompressBuffer(ms.ToArray());
+                }
+
+                foreach (var client in Root.Coob.GetClients())
+                {
+                    client.Writer.Write(0);
+                    client.Writer.Write(compressed.Length);
+                    client.Writer.Write(compressed);
                 }
             }
         }

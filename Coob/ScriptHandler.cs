@@ -15,9 +15,10 @@ namespace Coob
 
         public ScriptHandler(string source)
         {
-
             Engine = new JintEngine();
+
             Engine.AddPermission(new UIPermission(PermissionState.Unrestricted));
+            Engine.AddPermission(new FileIOPermission(PermissionState.Unrestricted));
 
             Engine.SetParameter("coob", Root.Coob);
 
@@ -29,7 +30,11 @@ namespace Coob
             {
                 Engine.Run(File.ReadAllText(source));
             }
-            catch (JintException ex) { Log.WriteError(ex.Message); }
+            catch (JintException ex)
+            {
+                Log.WriteError(ex.InnerException != null ? (ex.Message + ": " + ex.InnerException.Message) : ex.Message);
+                Environment.Exit(1);
+            }
         }
     }
 }

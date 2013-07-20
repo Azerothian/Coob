@@ -8,6 +8,7 @@ using System.Net;
 using System.Threading;
 using Coob.Structures;
 using Coob.Packets;
+using Jint.Native;
 
 namespace Coob
 {
@@ -15,6 +16,7 @@ namespace Coob
     {
         public int Port = 12345;
         public int WorldSeed;
+        public int MaxClients = 1024;
     }
 
     public class Coob
@@ -22,7 +24,7 @@ namespace Coob
         public ConcurrentQueue<Packet.Base> MessageQueue;
         public delegate Packet.Base PacketParserDel(Client client);
         public Dictionary<int, PacketParserDel> PacketParsers;
-        public ConcurrentBag<Client> Clients;
+        public Dictionary<long, Client> Clients;
         public ConcurrentDictionary<long, Entity> Entities;
         public CoobOptions Options;
 
@@ -35,59 +37,20 @@ namespace Coob
             this.Options = options;
             MessageQueue = new ConcurrentQueue<Packet.Base>();
             PacketParsers = new Dictionary<int, PacketParserDel>();
-            Clients = new ConcurrentBag<Client>();
+            Clients = new Dictionary<long, Client>();
             Entities = new ConcurrentDictionary<long, Entity>();
-            /*
-            CS_PACKETS = {
-               0 : EntityUpdate,
-               6 : InteractPacket,
-               7 : HitPacket,
-               8 : Unknown8, # stealth
-               9 : ShootPacket,
-               10 : ClientChatMessage,
-               11 : ChunkDiscovered,
-               12 : SectorDiscovered,
-               17 : ClientVersion
-            }
-            SC_PACKETS = {
-             
-               0 : EntityUpdate,
-               1 : MultipleEntityUpdate, # not used
-               2 : UpdateFinished,
-               3 : Unknown3, # not used
-               4 : ServerUpdate,
-               5 : CurrentTime,
-               10 : ServerChatMessage,
-               18 : ServerFull,
-               17 : ServerMismatch,
-               16 : JoinPacket,
-               15 : SeedData
-            }
-            */
 
             PacketParsers.Add(0, Packet.EntityUpdate.Parse);
-            
-           // PacketParsers.Add(1, ); // MultipleEntityUpdate
-            //PacketParsers.Add(2, ); // UpdateFinished
-
             PacketParsers.Add(6, Packet.Interact.Parse);
-
-            //PacketParsers.Add(7, ); //Hit
-            //PacketParsers.Add(8, ); //Unknown
             PacketParsers.Add(9, Packet.Shoot.Parse);
             PacketParsers.Add(10, Packet.ChatMessage.Parse);
             PacketParsers.Add(11, Packet.UpdateChunk.Parse);
             PacketParsers.Add(12, Packet.UpdateSector.Parse);
-
-            //PacketParsers.Add(15, ); //Seed Data
-            //PacketParsers.Add(16, ); //Join Packet
             PacketParsers.Add(17, Packet.ClientVersion.Parse);
 
             clientListener = new TcpListener(IPAddress.Any, options.Port);
             clientListener.Start();
             clientListener.BeginAcceptTcpClient(onClientConnect, null);
-            Root.JavaScript.Engine.CallFunction("onServerStartup");
- 
             
         }
 
@@ -99,7 +62,8 @@ namespace Coob
 
             if ((bool)Root.JavaScript.Engine.CallFunction("onClientConnect", ip))
             {
-                Clients.Add(new Client(tcpClient));
+                var newClient = new Client(tcpClient);
+                Clients.Add(newClient.ID, newClient);
             }
             else
             {
@@ -113,8 +77,8 @@ namespace Coob
         {
             if (!PacketParsers.ContainsKey(id))
             {
-                Log.WriteError("Unknown packet: " + id + " from client " + id);
-                //client.Disconnect("Unknown data");
+                Log.WriteError("Unknown packet: {0} from client {1}", id, client.ID);
+                client.Disconnect("Unknown data");
                 return;
             }
 
@@ -125,7 +89,7 @@ namespace Coob
                 !(message is Packet.UpdateChunk) &&
                 !(message is Packet.UpdateSector))
             {
-                Log.WriteInfo("queueing " + message);
+                Log.WriteInfo("queueing {0}", message);
             }
         }
 
@@ -142,26 +106,41 @@ namespace Coob
             while (true)
             {
                 Packet.Base message = null;
-                if (!MessageQueue.TryDequeue(out message)) continue;
+                if (!MessageQueue.TryDequeue(out message)) goto displayLog;
 
-                if (!message.CallScript()) continue;
+                try
+                {
+                    if (!message.CallScript()) goto displayLog;
+                }
+                catch (JsException ex)
+                {
+                    var messageText = (ex.InnerException != null ? (ex.Message + ": " + ex.InnerException.Message) : ex.Message);
+                    Log.WriteError("JS Error on {0}: {1} - {2}", message.PacketTypeName, messageText, ex.Value);
+                    goto displayLog;
+                }
 
                 message.Process();
+
+            displayLog:
+                Log.Display();
             }
         }
 
+        /// <summary>
+        /// Returns the lowest unused client ID. Returns -1 if limit is exceeded.
+        /// </summary>
+        /// <returns></returns>
         public long CreateID()
         {
-            long id = 0;
-            bool inuse = false;
-            do
+            for (long i = 0; i < Options.MaxClients; i++)
             {
-                id++;
-                inuse = false;
-                foreach (var client in Clients)
-                    if (client.ID == id) inuse = true;
-            } while (inuse);
-            return id;
+                if (Clients.ContainsKey(i) == false)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         public void BroadcastChat(long id, string message)
@@ -169,13 +148,28 @@ namespace Coob
             byte[] msgBuffer = Encoding.Unicode.GetBytes(message);
             int msgLength = msgBuffer.Length / 2;
 
-            foreach (var client in Clients)
+            foreach (var client in GetClients())
             {
                 client.Writer.Write(10);
                 client.Writer.Write(id);
                 client.Writer.Write(msgLength);
                 client.Writer.Write(msgBuffer);
             }
+        }
+
+        public Client[] GetClients()
+        {
+            return Clients.Values.ToArray();
+        }
+
+        public void SendServerMessage(string message)
+        {
+            Clients.Select(cl => cl.Value)
+                .Where(cl => cl.Joined)
+                .ToList()
+                .ForEach(
+                    cl => cl.SendServerMessage(message)
+                );
         }
     }
 }

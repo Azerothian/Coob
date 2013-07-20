@@ -1,12 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace Coob
 {
     class Log
     {
+        public class LogMessage
+        {
+            public string LogType;
+            public string Message;
+            public ConsoleColor BGColor;
+            public ConsoleColor FGColor;
+
+            public LogMessage(string logType, object message, ConsoleColor bgColor, ConsoleColor fgColor)
+            {
+                LogType = logType;
+                Message = message.ToString();
+                BGColor = bgColor;
+                FGColor = fgColor;
+            }
+        }
+
+        private static Queue<LogMessage> queuedMessages = new Queue<LogMessage>();
+
         static Log()
         {
             Console.Clear();
@@ -16,7 +33,7 @@ namespace Coob
         {
             Console.ForegroundColor = ConsoleColor.Black;
             Console.BackgroundColor = ConsoleColor.Gray;
-            Console.Write(DateTime.Now.ToString(" hh:mm "));
+            Console.Write(DateTime.Now.ToString(" HH:mm:ss "));
         }
 
         static void writeTypePrefix(string type, ConsoleColor bg, ConsoleColor fg)
@@ -31,31 +48,43 @@ namespace Coob
 
         public static void WriteInfo(string message)
         {
-            writeTimePrefix();
-            writeTypePrefix("INFO", ConsoleColor.DarkGreen, ConsoleColor.Green);
-            Console.WriteLine(message);
+            WriteInfo(message, new object[] { });
+        }
+
+        public static void WriteInfo(string format, params object[] args)
+        {
+            queuedMessages.Enqueue(new LogMessage("INFO", string.Format(format, args), ConsoleColor.DarkGreen, ConsoleColor.Green));
         }
 
         public static void WriteWarning(string message)
         {
-            writeTimePrefix();
-            writeTypePrefix("WARNING", ConsoleColor.DarkYellow, ConsoleColor.Yellow);
-            Console.WriteLine(message);
+            WriteWarning(message, new object[] { });
+        }
+
+        public static void WriteWarning(string format, params object[] args)
+        {
+            queuedMessages.Enqueue(new LogMessage("WARNING", string.Format(format, args), ConsoleColor.DarkYellow, ConsoleColor.Yellow));
         }
 
         public static void WriteError(string message)
         {
-            string[] lines = message.Split('\n');
-            if (lines.Length > 1)
+            WriteError(message, new object[] { });
+        }
+
+        public static void WriteError(string format, params object[] args)
+        {
+            queuedMessages.Enqueue(new LogMessage("ERROR", string.Format(format, args), ConsoleColor.DarkRed, ConsoleColor.Red));
+        }
+
+        public static void Display()
+        {
+            while (queuedMessages.Count > 0)
             {
-                foreach (string line in lines.Take(2))
-                    WriteError(line);
-            }
-            else
-            {
+                LogMessage message = queuedMessages.Dequeue();
+
                 writeTimePrefix();
-                writeTypePrefix("ERROR", ConsoleColor.DarkRed, ConsoleColor.Red);
-                Console.WriteLine(message);
+                writeTypePrefix(message.LogType, message.BGColor, message.FGColor);
+                Console.WriteLine(message.Message);
             }
         }
     }

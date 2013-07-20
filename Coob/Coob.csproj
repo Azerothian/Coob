@@ -49,14 +49,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BinaryWriterExtensions.cs" />
     <Compile Include="Client.cs" />
     <Compile Include="Coob.cs" />
+    <Compile Include="Exceptions\UserLimitReachedException.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="NetReader.cs" />
     <Compile Include="Packets\Base.cs" />
     <Compile Include="Packets\ChatMessage.cs" />
     <Compile Include="Packets\ClientVersion.cs" />
-    <Compile Include="Packets\Hit.cs" />
     <Compile Include="Packets\DiscoverWorld.cs" />
     <Compile Include="Packets\EntityUpdate.cs" />
     <Compile Include="Packets\Interact.cs" />

@@ -1,4 +1,5 @@
-﻿using Coob.Structures;
+﻿using Coob.Exceptions;
+using Coob.Structures;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,8 +15,9 @@ namespace Coob
         public NetReader Reader;
         public BinaryWriter Writer;
         public NetworkStream NetStream;
-        public long ID;
+        public long ID {get; private set;}
         public Entity Entity;
+        public string IP;
 
         TcpClient tcp;
         byte[] recvBuffer;
@@ -26,9 +28,17 @@ namespace Coob
             Entity = null;
 
             tcp = tcpClient;
+            IP = tcp.Client.RemoteEndPoint.ToString().Split(':')[0];
             NetStream = tcp.GetStream();
             Reader = new NetReader(NetStream);
             Writer = new BinaryWriter(NetStream);
+
+            ID = Root.Coob.CreateID();
+
+            if (ID == -1)
+            {
+                throw new UserLimitReachedException();
+            }
 
             recvBuffer = new byte[4];
             NetStream.BeginRead(recvBuffer, 0, 4, idCallback, null);
@@ -58,10 +68,17 @@ namespace Coob
 
         public void Disconnect(string reason = "")
         {
+            Joined = false;
             Root.JavaScript.Engine.CallFunction("onClientDisconnect", this);
 
-            Log.WriteInfo("Client " + ID + " disconnected (" + reason + ").");
+            Log.WriteInfo("Client {0} disconnected ({1}).", ID, reason);
             tcp.Close();
+
+            if (Root.Coob.Clients.ContainsKey(this.ID))
+            {
+                Root.Coob.Clients.Remove(this.ID);
+                Log.WriteInfo("Clients count: {0}", Root.Coob.Clients.Count);
+            }
         }
 
         public void SendMessage(long id, string message)
